@@ -31,7 +31,7 @@ RCT_EXPORT_MODULE()
   return self;
 }
 
-#pragma mark - Haptic Engine Management
+
 
 - (CHHapticEngine *)ensureEngine
 {
@@ -91,8 +91,6 @@ RCT_EXPORT_MODULE()
   [_lock unlock];
 }
 
-#pragma mark - Pattern Building
-
 - (CHHapticPattern *)hapticPatternFromArray:(NSArray<NSNumber *> *)pattern startIndex:(NSUInteger)startIndex
 {
   if (startIndex >= pattern.count)
@@ -134,8 +132,6 @@ RCT_EXPORT_MODULE()
   return hapticPattern;
 }
 
-#pragma mark - Execution Helper
-
 - (void)_playPattern:(CHHapticPattern *)pattern isLooping:(BOOL)isLooping
 {
   CHHapticEngine *engine = [self ensureEngine];
@@ -160,8 +156,6 @@ RCT_EXPORT_MODULE()
     [_lock unlock];
   }
 }
-
-#pragma mark - Exported Methods
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
