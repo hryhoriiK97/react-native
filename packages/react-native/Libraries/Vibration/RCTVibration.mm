@@ -18,7 +18,7 @@
 @implementation RCTVibration {
   CHHapticEngine *_engine;
   id<CHHapticPatternPlayer> _player;
-  NSLock *_lock; // Ensures thread safety for engine/player access
+  NSLock *_lock;
 }
 
 RCT_EXPORT_MODULE()
