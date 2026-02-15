@@ -22,15 +22,12 @@ exports.category = 'Basic';
 exports.documentationURL = 'https://reactnative.dev/docs/vibration';
 exports.description = 'Vibration API';
 
-const pattern = [0, 400, 500, 800];
-const patternLiteral = '[0, 400, 500, 800]';
+const pattern = [0, 500, 200, 500];
+const patternLiteral = '[0, 500, 200, 500]';
 const patternDescription = `${patternLiteral}
-Pattern format: [wait, vibrate, wait, vibrate, ...]
-  - Even indices (0, 2, 4...): pause duration in ms
-  - Odd indices (1, 3, 5...): vibration duration in ms
-
-This pattern: 400ms buzz → 500ms pause → 800ms buzz
-The second buzz is noticeably longer than the first.
+arg 0: duration to wait before turning the vibrator on.
+arg with odd: vibration length.
+arg with even: duration to wait before next vibration.
 `;
 
 exports.examples = [
