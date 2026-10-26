@@ -207,10 +207,15 @@ static NSString *convertJSIStringToNSString(jsi::Runtime &runtime, const jsi::St
       return;
     }
     const auto *chars = static_cast<const char16_t *>(data);
+    // Strings used to reach native code through UTF-8, and decoding UTF-8 into an NSString drops a
+    // byte order mark (U+FEFF) at the start. Drop it here too, so native code gets the same string.
+    if (length > 0 && chars[0] == 0xFEFF) {
+      chars++;
+      length--;
+    }
     // A lone surrogate can't be encoded as UTF-8, and native code often needs UTF-8, so such strings
-    // keep going through UTF-8, which replaces it as before. So does a leading byte order mark,
-    // which decoding UTF-8 drops.
-    if ((length > 0 && chars[0] == 0xFEFF) || hasLoneSurrogate(chars, length)) {
+    // keep going through UTF-8, which replaces it as before.
+    if (hasLoneSurrogate(chars, length)) {
       needsUTF8 = true;
       return;
     }
