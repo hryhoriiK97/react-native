@@ -382,6 +382,7 @@ void ReactInstance::callFunctionOnModule(
             moduleName,
             methodName,
             [&](std::vector<jsi::Value>& jsArgs) {
+              jsArgs.reserve(args.size());
               for (auto& arg : args) {
                 jsArgs.push_back(jsi::valueFromDynamic(runtime, arg));
               }
