@@ -3755,6 +3755,7 @@ struct facebook::react::WritableNativeMap : public jni::HybridClass<facebook::re
   public void putNativeMap(std::string key, facebook::react::ReadableNativeMap* otherMap);
   public void putNull(std::string key);
   public void putString(std::string key, jni::alias_ref<jstring> val);
+  public void putTouchPayload(jni::alias_ref<jni::JArrayDouble> pointerData, jint eventPointer, jint changedPointers, jint touchPointers);
 }
 
 template <const char* concreteComponentName, typename ViewPropsT = facebook::react::ViewProps, typename ViewEventEmitterT = facebook::react::ViewEventEmitter, typename StateDataT = facebook::react::StateData>

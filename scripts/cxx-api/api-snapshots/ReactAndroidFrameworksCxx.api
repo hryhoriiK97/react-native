@@ -6805,6 +6805,7 @@ struct facebook::react::WritableNativeMap : public jni::HybridClass<facebook::re
   public void putNativeMap(std::string key, facebook::react::ReadableNativeMap* otherMap);
   public void putNull(std::string key);
   public void putString(std::string key, jni::alias_ref<jstring> val);
+  public void putTouchPayload(jni::alias_ref<jni::JArrayDouble> pointerData, jint eventPointer, jint changedPointers, jint touchPointers);
 }
 
 template <CSSDataType AllowedTypeT, facebook::react::CSSDelimiter Delimeter>
