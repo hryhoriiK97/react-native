@@ -27,7 +27,6 @@
 #import <objc/runtime.h>
 #import <atomic>
 #import <iostream>
-#import <memory>
 #import <mutex>
 
 #import <sstream>
@@ -72,9 +71,7 @@ static T convertNSStringToJSI(jsi::Runtime &runtime, __unsafe_unretained NSStrin
       return jsi::String::createFromAscii(runtime, ascii, length);
     }
   };
-  auto fromUtf16 = [&](const UniChar *characters, size_t length) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    auto utf16 = reinterpret_cast<const char16_t *>(characters);
+  auto fromUtf16 = [&](const char16_t *utf16, size_t length) {
     if constexpr (std::is_same_v<T, jsi::PropNameID>) {
       return jsi::PropNameID::forUtf16(runtime, utf16, length);
     } else {
@@ -94,56 +91,31 @@ static T convertNSStringToJSI(jsi::Runtime &runtime, __unsafe_unretained NSStrin
     return fromAscii(ascii, static_cast<size_t>(length));
   }
   if (const UniChar *characters = CFStringGetCharactersPtr(string)) {
-    return fromUtf16(characters, static_cast<size_t>(length));
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return fromUtf16(reinterpret_cast<const char16_t *>(characters), static_cast<size_t>(length));
   }
-  // Short strings, such as most keys, are often stored in the pointer itself, so copy them to the stack.
-  constexpr CFIndex kStackLength = 64;
-  if (length <= kStackLength) {
-    UInt8 ascii[kStackLength];
-    CFIndex asciiLength = 0;
-    if (CFStringGetBytes(
-            string, CFRangeMake(0, length), kCFStringEncodingASCII, 0, false, ascii, length, &asciiLength) == length) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      return fromAscii(reinterpret_cast<const char *>(ascii), static_cast<size_t>(asciiLength));
-    }
-    UniChar characters[kStackLength];
-    CFStringGetCharacters(string, CFRangeMake(0, length), characters);
-    return fromUtf16(characters, static_cast<size_t>(length));
-  }
-  std::unique_ptr<UniChar[]> characters(new UniChar[length]);
-  CFStringGetCharacters(string, CFRangeMake(0, length), characters.get());
-  return fromUtf16(characters.get(), static_cast<size_t>(length));
-}
-
-static jsi::String convertNSStringToJSIString(jsi::Runtime &runtime, NSString *value)
-{
-  return convertNSStringToJSI<jsi::String>(runtime, value);
+  std::u16string utf16(length, u'\0');
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  CFStringGetCharacters(string, CFRangeMake(0, length), reinterpret_cast<UniChar *>(utf16.data()));
+  return fromUtf16(utf16.data(), utf16.size());
 }
 
 // Doesn't retain `value`: the caller holds it, and containers hold what they contain while it is converted.
 static jsi::Value convertUnretainedObjCObjectToJSIValue(jsi::Runtime &runtime, __unsafe_unretained id value);
 
-// Reads a container's objects at once and holds them while they are converted, because JS code
-// that runs while properties are set could change the container.
+// Reads a container's objects at once. They aren't retained, as the container holds them.
 template <typename ReadObjects>
-static std::vector<id> getRetainedObjects(NSUInteger count, ReadObjects readObjects)
+static std::vector<__unsafe_unretained id> getObjects(NSUInteger count, ReadObjects readObjects)
 {
-  constexpr NSUInteger kStackCount = 32;
-  __unsafe_unretained id stackObjects[kStackCount];
-  std::vector<__unsafe_unretained id> heapObjects;
-  __unsafe_unretained id *objects = stackObjects;
-  if (count > kStackCount) {
-    heapObjects.resize(count);
-    objects = heapObjects.data();
-  }
-  readObjects(objects);
-  return std::vector<id>(objects, objects + count);
+  std::vector<__unsafe_unretained id> objects(count);
+  readObjects(objects.data());
+  return objects;
 }
 
 static jsi::Object convertNSDictionaryToJSIObject(jsi::Runtime &runtime, __unsafe_unretained NSDictionary *value)
 {
   NSUInteger count = value.count;
-  std::vector<id> keysAndObjects = getRetainedObjects(count * 2, [&](__unsafe_unretained id *objects) {
+  std::vector<__unsafe_unretained id> keysAndObjects = getObjects(count * 2, [&](__unsafe_unretained id *objects) {
     [value getObjects:objects + count andKeys:objects count:count];
   });
   jsi::Object result = jsi::Object(runtime);
@@ -156,16 +128,16 @@ static jsi::Object convertNSDictionaryToJSIObject(jsi::Runtime &runtime, __unsaf
   return result;
 }
 
-static std::vector<id> getRetainedObjects(__unsafe_unretained NSArray *value)
+static std::vector<__unsafe_unretained id> getObjects(__unsafe_unretained NSArray *value)
 {
   NSUInteger count = value.count;
-  return getRetainedObjects(
+  return getObjects(
       count, [&](__unsafe_unretained id *objects) { [value getObjects:objects range:NSMakeRange(0, count)]; });
 }
 
 static jsi::Array convertNSArrayToJSIArray(jsi::Runtime &runtime, __unsafe_unretained NSArray *value)
 {
-  std::vector<id> objects = getRetainedObjects(value);
+  std::vector<__unsafe_unretained id> objects = getObjects(value);
   jsi::Array result = jsi::Array(runtime, objects.size());
   for (size_t i = 0; i < objects.size(); i++) {
     result.setValueAtIndex(runtime, i, convertUnretainedObjCObjectToJSIValue(runtime, objects[i]));
@@ -175,10 +147,10 @@ static jsi::Array convertNSArrayToJSIArray(jsi::Runtime &runtime, __unsafe_unret
 
 static std::vector<jsi::Value> convertNSArrayToStdVector(jsi::Runtime &runtime, __unsafe_unretained NSArray *value)
 {
-  std::vector<id> objects = getRetainedObjects(value);
+  std::vector<__unsafe_unretained id> objects = getObjects(value);
   std::vector<jsi::Value> result;
   result.reserve(objects.size());
-  for (id object : objects) {
+  for (__unsafe_unretained id object : objects) {
     result.emplace_back(convertUnretainedObjCObjectToJSIValue(runtime, object));
   }
   return result;
@@ -716,7 +688,7 @@ jsi::Value ObjCTurboModule::convertReturnIdToJSIValue(
       break;
     }
     case StringKind: {
-      returnValue = convertNSStringToJSIString(runtime, (NSString *)result);
+      returnValue = convertNSStringToJSI<jsi::String>(runtime, (NSString *)result);
       break;
     }
     case ObjectKind: {
