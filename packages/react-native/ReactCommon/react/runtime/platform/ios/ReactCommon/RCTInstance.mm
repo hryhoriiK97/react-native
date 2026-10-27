@@ -170,9 +170,6 @@ using namespace facebook::react;
 
 - (void)callFunctionOnJSModule:(NSString *)moduleName method:(NSString *)method args:(NSArray *)args
 {
-  if (moduleName.length == 0 || method.length == 0) {
-    return;
-  }
   // The arguments are converted on the JS thread, like the values of codegen's AsyncEventEmitter.
   NSArray *callArgs = [args copy];
   // This is called from arbitrary threads, while -invalidate destroys _reactInstance on
@@ -182,9 +179,7 @@ using namespace facebook::react;
     return;
   }
   _reactInstance->callFunctionOnModule(
-      [moduleName UTF8String] ?: "",
-      [method UTF8String] ?: "",
-      [callArgs](jsi::Runtime &runtime, std::vector<jsi::Value> &jsArgs) {
+      [moduleName UTF8String], [method UTF8String], [callArgs](jsi::Runtime &runtime, std::vector<jsi::Value> &jsArgs) {
         jsArgs.reserve(callArgs.count);
         for (id arg in callArgs) {
           jsArgs.push_back(TurboModuleConvertUtils::convertObjCObjectToJSIValue(runtime, arg));

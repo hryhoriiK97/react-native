@@ -871,4 +871,36 @@ function getResult() {
   EXPECT_EQ(result.getNumber(), 0);
 }
 
+TEST_F(ReactInstanceTest, testCallFunctionOnModule_withEmptyNames) {
+  initializeRuntimeWithScript(R"xyz123(
+let calls = 0;
+const module = {
+  bar: () => {
+    calls++;
+  },
+};
+RN$registerCallableModule('foo', () => module);
+function getCalls() {
+  return calls;
+}
+  )xyz123");
+
+  bool argFactoryCalled = false;
+  auto argFactory = [&](jsi::Runtime& /*runtime*/,
+                        std::vector<jsi::Value>& /*args*/) {
+    argFactoryCalled = true;
+  };
+  instance_->callFunctionOnModule("", "bar", argFactory);
+  instance_->callFunctionOnModule("foo", "", argFactory);
+  instance_->callFunctionOnModule("", "bar", folly::dynamic::array());
+  instance_->callFunctionOnModule("foo", "", folly::dynamic::array());
+  step();
+
+  EXPECT_FALSE(argFactoryCalled);
+  auto calls = runtime_->global()
+                   .getPropertyAsFunction(*runtime_, "getCalls")
+                   .call(*runtime_);
+  EXPECT_EQ(calls.getNumber(), 0);
+}
+
 } // namespace facebook::react

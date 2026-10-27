@@ -371,6 +371,9 @@ void ReactInstance::callFunctionOnModule(
     const std::string& moduleName,
     const std::string& methodName,
     folly::dynamic&& args) {
+  if (moduleName.empty() || methodName.empty()) {
+    return;
+  }
   bufferedRuntimeExecutor_->execute(
       [this,
        moduleName = moduleName,
@@ -394,6 +397,9 @@ void ReactInstance::callFunctionOnModule(
     const std::string& moduleName,
     const std::string& methodName,
     ArgFactory&& argFactory) {
+  if (moduleName.empty() || methodName.empty()) {
+    return;
+  }
   bufferedRuntimeExecutor_->execute(
       [this,
        moduleName = moduleName,
