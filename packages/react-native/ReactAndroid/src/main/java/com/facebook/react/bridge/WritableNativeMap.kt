@@ -64,5 +64,21 @@ public class WritableNativeMap : ReadableNativeMap(), WritableMap {
 
   private external fun mergeNativeMap(source: ReadableNativeMap)
 
+  /**
+   * Replaces the contents of this map with the payload of a touch event, in one JNI call. The
+   * payload has the fields of pointer [eventPointer] and the `changedTouches` and `touches` arrays
+   * of the pointers whose bits are set in [changedPointers] and [touchPointers].
+   *
+   * @param pointerData 8 values for each pointer, in order: pageX, pageY, locationX, locationY,
+   *   targetSurface, target, timestamp and identifier.
+   */
+  @JvmName("putTouchPayload")
+  internal external fun putTouchPayload(
+      pointerData: DoubleArray,
+      eventPointer: Int,
+      changedPointers: Int,
+      touchPointers: Int,
+  )
+
   private external fun initHybrid()
 }

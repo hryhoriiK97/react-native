@@ -7,6 +7,8 @@
 
 #include "WritableNativeMap.h"
 
+#include <stdexcept>
+
 using namespace facebook::jni;
 
 namespace facebook::react {
@@ -89,8 +91,54 @@ void WritableNativeMap::mergeNativeMap(ReadableNativeMap* other) {
   }
 }
 
+void WritableNativeMap::putTouchPayload(
+    alias_ref<JArrayDouble> pointerData,
+    jint eventPointer,
+    jint changedPointers,
+    jint touchPointers) {
+  throwIfConsumed();
+  // Must match TouchesHelper.POINTER_FIELDS and the order documented on
+  // WritableNativeMap.putTouchPayload.
+  constexpr jint kPointerFields = 8;
+  auto length = static_cast<jint>(pointerData->size());
+  jint pointerCount = length / kPointerFields;
+  if (length % kPointerFields != 0 || eventPointer < 0 ||
+      eventPointer >= pointerCount) {
+    throw std::invalid_argument("Invalid touch pointer data");
+  }
+  auto values = pointerData->getRegion(0, length);
+  auto pointer = [&](jint index) {
+    const double* fields = values.get() + index * kPointerFields;
+    folly::dynamic touch = folly::dynamic::object();
+    touch.insert("pageX", fields[0]);
+    touch.insert("pageY", fields[1]);
+    touch.insert("locationX", fields[2]);
+    touch.insert("locationY", fields[3]);
+    touch.insert("targetSurface", static_cast<int>(fields[4]));
+    touch.insert("target", static_cast<int>(fields[5]));
+    touch.insert("timestamp", fields[6]);
+    touch.insert("identifier", fields[7]);
+    return touch;
+  };
+
+  folly::dynamic changedTouches = folly::dynamic::array();
+  folly::dynamic touches = folly::dynamic::array();
+  for (jint index = 0; index < pointerCount; index++) {
+    if ((changedPointers & (1 << index)) != 0) {
+      changedTouches.push_back(pointer(index));
+    }
+    if ((touchPointers & (1 << index)) != 0) {
+      touches.push_back(pointer(index));
+    }
+  }
+  map_ = pointer(eventPointer);
+  map_.insert("changedTouches", std::move(changedTouches));
+  map_.insert("touches", std::move(touches));
+}
+
 void WritableNativeMap::registerNatives() {
   registerHybrid({
+      makeNativeMethod("putTouchPayload", WritableNativeMap::putTouchPayload),
       makeNativeMethod("putNull", WritableNativeMap::putNull),
       makeNativeMethod("putBoolean", WritableNativeMap::putBoolean),
       makeNativeMethod("putDouble", WritableNativeMap::putDouble),
