@@ -30,6 +30,7 @@ import com.facebook.testutils.shadows.ShadowArguments
 import com.facebook.testutils.shadows.ShadowNativeLoader
 import com.facebook.testutils.shadows.ShadowNativeMap
 import com.facebook.testutils.shadows.ShadowSoLoader
+import com.facebook.testutils.shadows.ShadowTouchesHelper
 import com.facebook.testutils.shadows.ShadowWritableNativeMap
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.After
@@ -54,6 +55,7 @@ import org.robolectric.shadow.api.Shadow
             ShadowNativeLoader::class,
             ShadowArguments::class,
             ShadowWritableNativeMap::class,
+            ShadowTouchesHelper::class,
         ]
 )
 class TouchEventDispatchTest {

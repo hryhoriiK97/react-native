@@ -37,11 +37,6 @@ struct WritableNativeMap : jni::HybridClass<WritableNativeMap, ReadableNativeMap
   void putNativeArray(std::string key, ReadableNativeArray *otherArray);
   void putNativeMap(std::string key, ReadableNativeMap *otherMap);
   void mergeNativeMap(ReadableNativeMap *other);
-  void putTouchPayload(
-      jni::alias_ref<jni::JArrayDouble> pointerData,
-      jint eventPointer,
-      jint changedPointers,
-      jint touchPointers);
 
   static void registerNatives();
 
