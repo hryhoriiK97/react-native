@@ -8,7 +8,7 @@
 package com.facebook.react.uimanager.events
 
 import com.facebook.proguard.annotations.DoNotStrip
-import com.facebook.react.bridge.ReactNativeJniCommonSoLoader
+import com.facebook.react.bridge.ReactNativeJNISoLoader
 import com.facebook.react.bridge.WritableNativeMap
 import com.facebook.react.uimanager.PixelUtil.pxToDp
 import com.facebook.systrace.Systrace
@@ -20,16 +20,14 @@ import com.facebook.systrace.Systrace
 @DoNotStrip
 internal object TouchesHelper {
   init {
-    ReactNativeJniCommonSoLoader.staticInit()
+    ReactNativeJNISoLoader.staticInit()
   }
 
-  @JvmField @Deprecated("Not used in New Architecture") val TARGET_KEY: String = "target"
-
-  // Values per pointer in the data passed to nativePutTouchPayload.
+  // Values per pointer in the data passed to nativeCreateTouchPayload.
   private const val POINTER_FIELDS = 8
 
   /**
-   * Fills the pointer data of [nativePutTouchPayload]: for each pointer of the
+   * Fills the pointer data of [nativeCreateTouchPayload]: for each pointer of the
    * [android.view.MotionEvent], in order, pageX, pageY, locationX, locationY, targetSurface,
    * target, timestamp and identifier.
    */
@@ -127,8 +125,8 @@ internal object TouchesHelper {
         if (changedPointers and (1 shl pointer) == 0) {
           continue
         }
-        val eventData = WritableNativeMap()
-        nativePutTouchPayload(eventData, pointerData, pointer, changedPointers, touchPointers)
+        val eventData =
+            nativeCreateTouchPayload(pointerData, pointer, changedPointers, touchPointers)
 
         eventEmitter.receiveEvent(
             event.surfaceId,
@@ -147,20 +145,19 @@ internal object TouchesHelper {
   }
 
   /**
-   * Puts the payload of a touch event into the empty map [payload]: the fields of pointer
-   * [eventPointer] and the `changedTouches` and `touches` arrays of the pointers whose bits are set
-   * in [changedPointers] and [touchPointers].
+   * Creates the payload of a touch event: the fields of pointer [eventPointer] and the
+   * `changedTouches` and `touches` arrays of the pointers whose bits are set in [changedPointers]
+   * and [touchPointers].
    *
    * @param pointerData 8 values for each pointer, in order: pageX, pageY, locationX, locationY,
    *   targetSurface, target, timestamp and identifier.
    */
   @DoNotStrip
   @JvmStatic
-  private external fun nativePutTouchPayload(
-      payload: WritableNativeMap,
+  private external fun nativeCreateTouchPayload(
       pointerData: DoubleArray,
       eventPointer: Int,
       changedPointers: Int,
       touchPointers: Int,
-  )
+  ): WritableNativeMap
 }

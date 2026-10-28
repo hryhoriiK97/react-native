@@ -19,7 +19,7 @@ namespace facebook::react {
 namespace {
 
 // Must match TouchesHelper.POINTER_FIELDS and the order documented on
-// TouchesHelper.nativePutTouchPayload.
+// TouchesHelper.nativeCreateTouchPayload.
 constexpr jint kPointerFields = 8;
 
 folly::dynamic createTouch(const double* fields) {
@@ -35,9 +35,8 @@ folly::dynamic createTouch(const double* fields) {
   return touch;
 }
 
-void putTouchPayload(
+local_ref<WritableNativeMap::jhybridobject> createTouchPayload(
     alias_ref<jclass> /*unused*/,
-    WritableNativeMap* payload,
     alias_ref<JArrayDouble> pointerData,
     jint eventPointer,
     jint changedPointers,
@@ -63,6 +62,8 @@ void putTouchPayload(
     }
   }
 
+  auto jPayload = WritableNativeMap::newObjectJavaArgs();
+  auto* payload = jPayload->cthis();
   const double* fields = values.get() + eventPointer * kPointerFields;
   payload->putDouble("pageX", fields[0]);
   payload->putDouble("pageY", fields[1]);
@@ -76,13 +77,14 @@ void putTouchPayload(
   payload->putNativeArray("changedTouches", &changedTouchesArray);
   WritableNativeArray touchesArray(std::move(touches));
   payload->putNativeArray("touches", &touchesArray);
+  return jPayload;
 }
 
 } // namespace
 
 void TouchesHelper::registerNatives() {
   javaClassLocal()->registerNatives({
-      makeNativeMethod("nativePutTouchPayload", putTouchPayload),
+      makeNativeMethod("nativeCreateTouchPayload", createTouchPayload),
   });
 }
 

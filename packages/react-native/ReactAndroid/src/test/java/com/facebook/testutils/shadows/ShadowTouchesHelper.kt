@@ -21,16 +21,15 @@ class ShadowTouchesHelper {
   companion object {
     private const val POINTER_FIELDS = 8
 
-    /** Builds the same payload as the native TouchesHelper::putTouchPayload. */
+    /** Builds the same payload as the native TouchesHelper::createTouchPayload. */
     @JvmStatic
     @Implementation
-    fun nativePutTouchPayload(
-        payload: WritableNativeMap,
+    fun nativeCreateTouchPayload(
         pointerData: DoubleArray,
         eventPointer: Int,
         changedPointers: Int,
         touchPointers: Int,
-    ) {
+    ): WritableNativeMap {
       val pointerCount = pointerData.size / POINTER_FIELDS
       val changedTouches = JavaOnlyArray()
       val touches = JavaOnlyArray()
@@ -42,9 +41,11 @@ class ShadowTouchesHelper {
           touches.pushMap(JavaOnlyMap().also { putTouch(it, pointerData, index) })
         }
       }
+      val payload = WritableNativeMap()
       putTouch(payload, pointerData, eventPointer)
       payload.putArray("changedTouches", changedTouches)
       payload.putArray("touches", touches)
+      return payload
     }
 
     private fun putTouch(touch: WritableMap, pointerData: DoubleArray, index: Int) {

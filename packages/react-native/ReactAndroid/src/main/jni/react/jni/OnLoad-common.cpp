@@ -12,7 +12,6 @@
 #include "JReactMarker.h"
 #include "NativeArray.h"
 #include "NativeMap.h"
-#include "TouchesHelper.h"
 #include "WritableNativeArray.h"
 #include "WritableNativeMap.h"
 
@@ -28,7 +27,6 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     NativeMap::registerNatives();
     ReadableNativeArray::registerNatives();
     ReadableNativeMap::registerNatives();
-    TouchesHelper::registerNatives();
     WritableNativeArray::registerNatives();
     WritableNativeMap::registerNatives();
   });
