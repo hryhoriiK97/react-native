@@ -1355,6 +1355,7 @@ internal object TextLayoutManager {
     return CreateLayoutResult(
         layout,
         textBreakStrategy,
+        hyphenationFrequency,
         justificationMode,
     )
   }
@@ -1438,8 +1439,23 @@ internal object TextLayoutManager {
             maximumNumberOfLines,
         )
 
+    // Prepared layouts are drawn, so drop the text hidden after an ellipsis. Justified lines and
+    // hyphens are drawn from the justification mode and hyphen edits, which a delegating layout
+    // doesn't have.
+    val layout =
+        if (
+            ReactNativeFeatureFlags.enableEllipsizedTextTrimmingAndroid() &&
+                result.hyphenationFrequency == Layout.HYPHENATION_FREQUENCY_NONE &&
+                (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                    result.justificationMode == Layout.JUSTIFICATION_MODE_NONE)
+        ) {
+          EllipsisTrimmedLayout.createIfNeeded(result.layout, text) ?: result.layout
+        } else {
+          result.layout
+        }
+
     return PreparedLayout(
-        result.layout,
+        layout,
         maximumNumberOfLines,
         verticalOffset,
         reactTags,
@@ -1960,6 +1976,7 @@ internal object TextLayoutManager {
   private class CreateLayoutResult(
       val layout: Layout,
       val textBreakStrategy: Int,
+      val hyphenationFrequency: Int,
       val justificationMode: Int,
   )
 
