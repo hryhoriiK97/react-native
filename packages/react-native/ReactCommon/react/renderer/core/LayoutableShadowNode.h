@@ -117,11 +117,6 @@ class LayoutableShadowNode : public ShadowNode {
    */
   LayoutMetrics getLayoutMetrics() const;
 
-  const LayoutableShadowNode *asLayoutable() const override
-  {
-    return this;
-  }
-
   /*
    * Returns a transform object that represents transformations that will/should
    * be applied on top of regular layout metrics by mounting layer.

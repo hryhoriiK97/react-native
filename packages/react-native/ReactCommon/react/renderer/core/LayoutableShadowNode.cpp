@@ -23,7 +23,9 @@ LayoutableShadowNode::LayoutableShadowNode(
     const ShadowNodeFragment& fragment,
     const ShadowNodeFamily::Shared& family,
     ShadowNodeTraits traits)
-    : ShadowNode(fragment, family, traits), layoutMetrics_({}) {}
+    : ShadowNode(fragment, family, traits), layoutMetrics_({}) {
+  traits_.set(ShadowNodeTraits::Trait::LayoutableKind);
+}
 
 LayoutableShadowNode::LayoutableShadowNode(
     const ShadowNode& sourceShadowNode,
@@ -31,7 +33,9 @@ LayoutableShadowNode::LayoutableShadowNode(
     : ShadowNode(sourceShadowNode, fragment),
       layoutMetrics_(
           static_cast<const LayoutableShadowNode&>(sourceShadowNode)
-              .layoutMetrics_) {}
+              .layoutMetrics_) {
+  traits_.set(ShadowNodeTraits::Trait::LayoutableKind);
+}
 
 LayoutMetrics LayoutableShadowNode::computeLayoutMetricsFromRoot(
     const ShadowNodeFamily& descendantNodeFamily,

@@ -27,7 +27,6 @@
 namespace facebook::react {
 
 class ComponentDescriptor;
-class LayoutableShadowNode;
 struct ShadowNodeFragment;
 struct ShadowNodeWrapper;
 
@@ -122,15 +121,6 @@ class ShadowNode : public Sealable, public DebugStringConvertible, public jsi::N
    * ComponentDescriptor::cloneShadowNode.
    */
   virtual void completeClone(const ShadowNode & /* sourceShadowNode */, const ShadowNodeFragment & /* fragment */) {}
-
-  /**
-   * Returns this node as a `LayoutableShadowNode`, or `nullptr` if it isn't
-   * one. Cheaper than a `dynamic_cast`.
-   */
-  virtual const LayoutableShadowNode *asLayoutable() const
-  {
-    return nullptr;
-  }
 
 #pragma mark - Getters
 

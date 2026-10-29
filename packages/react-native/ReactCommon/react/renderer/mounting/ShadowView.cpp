@@ -13,10 +13,15 @@
 namespace facebook::react {
 
 static LayoutMetrics layoutMetricsFromShadowNode(const ShadowNode& shadowNode) {
-  auto layoutableShadowNode = shadowNode.asLayoutable();
-  return layoutableShadowNode != nullptr
-      ? layoutableShadowNode->getLayoutMetrics()
-      : EmptyLayoutMetrics;
+  // `LayoutableShadowNode`'s constructors set `LayoutableKind`, so the trait
+  // tells whether the node is one without a `dynamic_cast`. A trait rather
+  // than a virtual method keeps the `ShadowNode` vtable unchanged for native
+  // code built against other headers.
+  if (!shadowNode.getTraits().check(ShadowNodeTraits::Trait::LayoutableKind)) {
+    return EmptyLayoutMetrics;
+  }
+  return static_cast<const LayoutableShadowNode&>(shadowNode)
+      .getLayoutMetrics();
 }
 
 ShadowView::ShadowView(const ShadowNode& shadowNode)

@@ -93,6 +93,10 @@ class ShadowNodeTraits {
     // **Deprecated**: This trait is deprecated and will be removed in a future
     // version of React Native.
     DirtyYogaNode = 1 << 14,
+
+    // Inherits `LayoutableShadowNode`. Set by its constructors, so a node is a
+    // `LayoutableShadowNode` exactly when it has this trait.
+    LayoutableKind = 1 << 15,
   };
 
   /*
