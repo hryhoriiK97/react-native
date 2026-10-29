@@ -7,10 +7,10 @@
 
 package com.facebook.react.views.text
 
+import android.os.Build
 import android.text.Layout
 import android.text.SpannableString
 import android.text.Spanned
-import android.text.TextDirectionHeuristics
 import android.text.style.ClickableSpan
 import android.text.style.ReplacementSpan
 import com.facebook.react.common.annotations.UnstableReactNativeAPI
@@ -43,17 +43,27 @@ private constructor(
 
   private val lastLine = delegate.lineCount - 1
 
-  /** The layout this one draws, with the whole text. */
-  val originalLayout: Layout
-    get() = delegate
-
   companion object {
     /**
-     * Returns an [EllipsisTrimmedLayout] if [layout], a layout of [source] that isn't justified or
-     * hyphenated, is ellipsized at the end and hides text that only matters for drawing, else null.
+     * Returns an [EllipsisTrimmedLayout] if [layout], a layout of [source], is ellipsized at the
+     * end and hides text that only matters for drawing, else null.
      */
     @OptIn(UnstableReactNativeAPI::class)
-    fun createIfNeeded(layout: Layout, source: Spanned): EllipsisTrimmedLayout? {
+    fun createIfNeeded(
+        layout: Layout,
+        source: Spanned,
+        hyphenationFrequency: Int,
+        justificationMode: Int,
+    ): EllipsisTrimmedLayout? {
+      // Justified lines and hyphens are drawn from the layout's justification mode and hyphen
+      // edits, which a delegating layout doesn't have.
+      if (
+          hyphenationFrequency != Layout.HYPHENATION_FREQUENCY_NONE ||
+              (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                  justificationMode != Layout.JUSTIFICATION_MODE_NONE)
+      ) {
+        return null
+      }
       val lastLine = layout.lineCount - 1
       if (lastLine < 0 || layout.getEllipsisCount(lastLine) <= 1) {
         return null
@@ -66,44 +76,66 @@ private constructor(
         return null
       }
       val end = ellipsisStart + 1
-      // Keep the text whole when its hidden part matters beyond drawing: line directions are
-      // computed over the whole line, and text with right-to-left characters anywhere gets
-      // bounds-based drawing on Android 15+, which this layout doesn't have; links are exposed to
-      // accessibility, inline views are measured, replacement spans and text effects draw or work
-      // on the range they were given, and so do touchable spans.
-      if (
-          TextDirectionHeuristics.ANYRTL_LTR.isRtl(source, 0, source.length) ||
-              source.getSpans(end, source.length, ClickableSpan::class.java).isNotEmpty() ||
-              source.getSpans(end, source.length, ReplacementSpan::class.java).isNotEmpty() ||
-              source.getSpans(end, source.length, TextEffectSpan::class.java).isNotEmpty() ||
-              source.getSpans(end, source.length, TouchableSpan::class.java).isNotEmpty()
-      ) {
+      // Keep the text whole when its hidden part matters beyond drawing. Bidirectional text is laid
+      // out in runs over the whole line, which can put hidden runs before visible ones, and on
+      // Android 15+ text with right-to-left characters is drawn with bounds-based width, which this
+      // layout doesn't have. Letter spacing also spaces the hidden characters before Android 15.
+      if (layout.paint.letterSpacing != 0f || mayNeedBidi(source)) {
         return null
       }
-      // Before Android 15, letter spacing also spaces the hidden characters, and a centered or
-      // end-aligned line is drawn from a width that includes them.
-      if (
-          layout.alignment != Layout.Alignment.ALIGN_NORMAL &&
-              (layout.paint.letterSpacing != 0f ||
-                  source
-                      .getSpans(
-                          end,
-                          layout.getLineEnd(lastLine),
-                          CustomLetterSpacingSpan::class.java,
-                      )
-                      .isNotEmpty())
-      ) {
-        return null
+      // Links are exposed to accessibility, replacement spans such as inline views are measured
+      // and drawn over their whole range, and text effects, touchable spans and letter spacing
+      // work on the range they were given.
+      for (span in source.getSpans(end, source.length, Any::class.java)) {
+        if (
+            span is ClickableSpan ||
+                span is ReplacementSpan ||
+                span is TextEffectSpan ||
+                span is TouchableSpan ||
+                span is CustomLetterSpacingSpan
+        ) {
+          return null
+        }
       }
       // The layout's text already has the ellipsis character in place.
       val trimmedText = layout.text.subSequence(0, end)
-      if (trimmedText[trimmedText.length - 1] != '\u2026') {
+      if (trimmedText[trimmedText.length - 1] != '…') {
         return null
       }
       return EllipsisTrimmedLayout(
           layout,
           trimmedText as? SpannableString ?: SpannableString(trimmedText),
       )
+    }
+
+    /** The whole text of [layout], also when it's an [EllipsisTrimmedLayout]. */
+    fun untrimmedText(layout: Layout): CharSequence =
+        ((layout as? EllipsisTrimmedLayout)?.delegate ?: layout).text
+
+    /**
+     * Whether [text] has a right-to-left character or a directional formatting character. Unlike
+     * `TextDirectionHeuristics.ANYRTL_LTR`, this also sees right-to-left text inside isolates.
+     */
+    private fun mayNeedBidi(text: CharSequence): Boolean {
+      var i = 0
+      while (i < text.length) {
+        val codePoint = Character.codePointAt(text, i)
+        when (Character.getDirectionality(codePoint)) {
+          Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+          Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+          Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
+          Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE,
+          Character.DIRECTIONALITY_RIGHT_TO_LEFT_ISOLATE,
+          Character.DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING,
+          Character.DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE,
+          Character.DIRECTIONALITY_LEFT_TO_RIGHT_ISOLATE,
+          Character.DIRECTIONALITY_FIRST_STRONG_ISOLATE,
+          Character.DIRECTIONALITY_POP_DIRECTIONAL_FORMAT,
+          Character.DIRECTIONALITY_POP_DIRECTIONAL_ISOLATE -> return true
+        }
+        i += Character.charCount(codePoint)
+      }
+      return false
     }
   }
 
@@ -134,17 +166,11 @@ private constructor(
 
   override fun getParagraphDirection(line: Int): Int = delegate.getParagraphDirection(line)
 
-  // --- Non-abstract overrides: StaticLayout's fast paths, as in MutableSpannableLayout ---
-
   override fun getEllipsizedWidth(): Int = delegate.ellipsizedWidth
 
-  override fun getLineMax(line: Int): Float = delegate.getLineMax(line)
-
-  override fun getLineWidth(line: Int): Float = delegate.getLineWidth(line)
-
-  override fun getLineLeft(line: Int): Float = delegate.getLineLeft(line)
-
-  override fun getLineRight(line: Int): Float = delegate.getLineRight(line)
+  // Line widths (getLineMax, getLineWidth, getLineLeft, getLineRight) are not delegated: the
+  // original computes them by shaping its whole last line, hidden text included, and this layout
+  // gets the same values from its own, shorter text.
 
   // Only called by the framework on API 33+
   @android.annotation.SuppressLint("NewApi")

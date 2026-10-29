@@ -217,7 +217,7 @@ public constructor(
     val layout = preparedLayout.layout
     // The TextView lays the text out again, so it needs the whole text, not the drawn text trimmed
     // after an ellipsis.
-    val text = ((layout as? EllipsisTrimmedLayout)?.originalLayout ?: layout).text
+    val text = EllipsisTrimmedLayout.untrimmedText(layout)
     val spanned = if (text is Spannable) text else SpannableString(text)
     view.setSpanned(spanned)
     view.setPreparedLayout(preparedLayout)
