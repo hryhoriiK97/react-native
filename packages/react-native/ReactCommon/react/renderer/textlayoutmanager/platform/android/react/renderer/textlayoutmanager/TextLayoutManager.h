@@ -120,9 +120,6 @@ class TextLayoutManager {
 
  private:
   std::shared_ptr<const ContextContainer> contextContainer_;
-  // FabricUIManager, read from the context container once: reading it copies
-  // its JNI global reference.
-  const SafeReleaseJniRef<jni::global_ref<jobject>> fabricUIManager_;
   TextMeasureCache textMeasureCache_;
   LineMeasureCache lineMeasureCache_;
   SimpleThreadSafeCache<PreparedTextCacheKey, PreparedTextLayout, -1 /* Set dynamically*/> preparedTextCache_;
