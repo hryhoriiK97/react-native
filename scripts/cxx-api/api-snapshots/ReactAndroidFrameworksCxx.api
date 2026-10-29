@@ -1416,6 +1416,7 @@ class facebook::react::BaseScrollViewProps : public facebook::react::HostPlatfor
   public bool disableIntervalMomentum;
   public bool horizontal;
   public bool isInvertedVirtualizedList;
+  public bool padsContentForSafeArea;
   public bool pagingEnabled;
   public bool persistentScrollbar;
   public bool pinchGestureEnabled;
@@ -4013,7 +4014,13 @@ class facebook::react::TextLayoutManager {
   public facebook::react::TextMeasurement measure(const facebook::react::AttributedStringBox& attributedStringBox, const facebook::react::ParagraphAttributes& paragraphAttributes, const facebook::react::TextLayoutContext& layoutContext, const facebook::react::LayoutConstraints& layoutConstraints) const;
   public facebook::react::TextMeasurement measureCachedSpannableById(int64_t cacheId, const facebook::react::ParagraphAttributes& paragraphAttributes, const facebook::react::TextLayoutContext& layoutContext, const facebook::react::LayoutConstraints& layoutConstraints) const;
   public facebook::react::TextMeasurement measurePreparedLayout(const facebook::react::TextLayoutManager::PreparedTextLayout& layout, const facebook::react::TextLayoutContext& layoutContext, const facebook::react::LayoutConstraints& layoutConstraints) const;
-  public using PreparedTextLayout = facebook::react::SafeReleaseJniRef<jni::global_ref<facebook::react::JPreparedLayout>>;
+}
+
+class facebook::react::TextLayoutManager::PreparedTextLayout {
+  public JPreparedLayout::javaobject get() const;
+  public PreparedTextLayout() = default;
+  public PreparedTextLayout(jni::global_ref<facebook::react::JPreparedLayout> ref);
+  public operator bool() const noexcept;
 }
 
 class facebook::react::TextMeasureCacheKey {

@@ -606,9 +606,10 @@ const JavaTurboModule::MethodInfo* JavaTurboModule::getMethodInfo(
                 .emplace(
                     methodName,
                     MethodInfo{
-                        methodID,
-                        getMethodArgTypesFromSignature(signature),
-                        signature.substr(signature.find_last_of(')') + 1)})
+                        .methodID = methodID,
+                        .argTypes = getMethodArgTypesFromSignature(signature),
+                        .returnType =
+                            signature.substr(signature.find_last_of(')') + 1)})
                 .first;
   }
   return &entry->second;
