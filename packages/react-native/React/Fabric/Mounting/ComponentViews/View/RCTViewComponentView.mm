@@ -33,6 +33,8 @@
 #import <react/renderer/components/view/accessibilityPropsConversions.h>
 #import <react/renderer/graphics/BlendMode.h>
 
+#import <React/RCTScrollViewComponentView.h>
+
 #ifdef RCT_DYNAMIC_FRAMEWORKS
 #import <React/RCTComponentViewFactory.h>
 #endif
@@ -105,24 +107,11 @@ static BOOL RCTViewIsInteractiveAccessibilityElement(UIView *view, const ViewPro
 }
 #endif
 
-// The number of live views with `removeClippedSubviews` on. Only such views act on
-// `updateClippedSubviewsWithClipRect:relativeToView:`, so while it is 0 a ScrollView
-// can skip walking its subviews. Views are only created and changed on the main thread.
-static NSUInteger RCTClippingViewCount = 0;
-
-NSUInteger RCTViewComponentViewClippingViewCount(void)
-{
-  return RCTClippingViewCount;
-}
-
-static void RCTUpdateClippingViewCount(BOOL wasClipping, BOOL isClipping)
-{
-  if (isClipping && !wasClipping) {
-    RCTClippingViewCount++;
-  } else if (wasClipping && !isClipping) {
-    RCTClippingViewCount--;
-  }
-}
+// Implemented in RCTScrollViewComponentView.mm.
+@interface RCTScrollViewComponentView (ClippingViews)
+- (void)_registerClippingView:(UIView *)view;
+- (void)_unregisterClippingView:(UIView *)view;
+@end
 
 @implementation RCTViewComponentView {
   UIColor *_backgroundColor;
@@ -136,6 +125,7 @@ static void RCTUpdateClippingViewCount(BOOL wasClipping, BOOL isClipping)
   BOOL _isJSResponder;
   BOOL _removeClippedSubviews;
   NSMutableArray<UIView *> *_reactSubviews;
+  __weak RCTScrollViewComponentView *_clippingScrollView;
   NSSet<NSString *> *_Nullable _propKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN;
   UIView *_containerView;
   BOOL _useCustomContainerView;
@@ -385,9 +375,9 @@ static BOOL RCTLayerTransformCollapsesAxis(CALayer *layer)
     // Compare against the current state, not `_props`: `prepareForRecycle` resets
     // `_removeClippedSubviews` but keeps `_props`.
     if (_removeClippedSubviews != newViewProps.removeClippedSubviews) {
-      RCTUpdateClippingViewCount(_removeClippedSubviews, newViewProps.removeClippedSubviews);
       _removeClippedSubviews = newViewProps.removeClippedSubviews;
       [self _updateRemoveClippedSubviewsState];
+      [self _updateClippingScrollView];
     }
   }
 
@@ -836,6 +826,26 @@ static BOOL RCTEdgeInsetsEqualWithThreshold(UIEdgeInsets lhs, UIEdgeInsets rhs, 
   if ([self _observesSafeAreaInsets]) {
     [self setNeedsLayout];
   }
+  [self _updateClippingScrollView];
+}
+
+// A ScrollView walks its content for views with `removeClippedSubviews` on (see
+// `-[RCTScrollViewComponentView _remountChildren]`). Register this view with its nearest
+// ScrollView while it has the prop on and is in a window, so that the ScrollView can skip
+// the walk when it has no such views. A ScrollView doesn't register: the walk of an outer
+// ScrollView stops at it, and it clips its own content.
+- (void)_updateClippingScrollView
+{
+  BOOL needsClippingPass =
+      _removeClippedSubviews && self.window != nil && ![self isKindOfClass:[RCTScrollViewComponentView class]];
+  RCTScrollViewComponentView *scrollView =
+      needsClippingPass ? [RCTScrollViewComponentView findScrollViewComponentViewForView:self] : nil;
+  if (scrollView == _clippingScrollView) {
+    return;
+  }
+  [_clippingScrollView _unregisterClippingView:self];
+  [scrollView _registerClippingView:self];
+  _clippingScrollView = scrollView;
 }
 
 - (void)layoutSubviews
@@ -868,11 +878,6 @@ static BOOL RCTEdgeInsetsEqualWithThreshold(UIEdgeInsets lhs, UIEdgeInsets rhs, 
 
   _needsInvalidateLayer = NO;
   [self invalidateLayer];
-}
-
-- (void)dealloc
-{
-  RCTUpdateClippingViewCount(_removeClippedSubviews, NO);
 }
 
 - (void)prepareForRecycle
@@ -912,8 +917,8 @@ static BOOL RCTEdgeInsetsEqualWithThreshold(UIEdgeInsets lhs, UIEdgeInsets rhs, 
   _propKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN = nil;
   _eventEmitter.reset();
   _isJSResponder = NO;
-  RCTUpdateClippingViewCount(_removeClippedSubviews, NO);
   _removeClippedSubviews = NO;
+  [self _updateClippingScrollView];
   _reactSubviews = [NSMutableArray new];
   _layoutMetrics = EmptyLayoutMetrics;
 }

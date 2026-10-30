@@ -92,9 +92,6 @@ RCTSendScrollEventForNativeAnimations_DEPRECATED(UIScrollView *scrollView, NSInt
 
 @end
 
-// Defined in RCTViewComponentView.mm.
-NSUInteger RCTViewComponentViewClippingViewCount(void);
-
 @implementation RCTScrollViewComponentView {
   ScrollViewShadowNode::ConcreteState::Shared _state;
   CGSize _contentSize;
@@ -109,6 +106,9 @@ NSUInteger RCTViewComponentViewClippingViewCount(void);
   BOOL _automaticallyAdjustKeyboardInsets;
 
   CGPoint _contentOffsetWhenClipped;
+  // Views with `removeClippedSubviews` on in a window whose nearest ScrollView is this one.
+  // See `_remountChildren`.
+  NSHashTable<UIView *> *_clippingViews;
 
   __weak UIView *_contentView;
 
@@ -1010,13 +1010,30 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
     return;
   }
 
-  // The walk below only changes something at a view with `removeClippedSubviews` on.
-  if (RCTViewComponentViewClippingViewCount() == 0) {
+  // The walk below only changes something at a view with `removeClippedSubviews` on, and such
+  // views register with their nearest ScrollView once they are in a window. Outside a window,
+  // walk anyway: the content may be mounted before the ScrollView is shown.
+  if (self.window != nil && _clippingViews.count == 0) {
     return;
   }
 
   [_scrollView updateClippedSubviewsWithClipRect:CGRectInset(_scrollView.bounds, -kClippingLeeway, -kClippingLeeway)
                                   relativeToView:_scrollView];
+}
+
+// Called by `RCTViewComponentView` (see `_updateClippingScrollView`) for views with
+// `removeClippedSubviews` on.
+- (void)_registerClippingView:(UIView *)view
+{
+  if (_clippingViews == nil) {
+    _clippingViews = [NSHashTable weakObjectsHashTable];
+  }
+  [_clippingViews addObject:view];
+}
+
+- (void)_unregisterClippingView:(UIView *)view
+{
+  [_clippingViews removeObject:view];
 }
 
 #pragma mark - RCTScrollableProtocol
