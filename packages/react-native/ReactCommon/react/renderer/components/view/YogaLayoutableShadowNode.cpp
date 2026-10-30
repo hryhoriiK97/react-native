@@ -562,7 +562,9 @@ void YogaLayoutableShadowNode::configureYogaTree(
 YGErrata YogaLayoutableShadowNode::resolveErrata(YGErrata defaultErrata) const {
   // This runs for every child on every layout, and almost no node is a
   // LayoutConformance node, so a failing `dynamic_cast` would be the common
-  // case. The class is final, so comparing component handles is equivalent.
+  // case. The class is final and its component name is defined once, in
+  // LayoutConformanceShadowNode.cpp, so comparing component handles is
+  // equivalent.
   if (getComponentHandle() == LayoutConformanceShadowNode::Handle()) {
     const auto& layoutConformanceNode =
         static_cast<const LayoutConformanceShadowNode&>(*this);
